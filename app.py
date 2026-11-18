@@ -1,5 +1,6 @@
 import os
-from flask import Flask, render_template, request, send_file, flash, redirect, url_for
+from flask import Flask, render_template, request, send_file, flash, redirect, url_for, jsonify
+
 from config import Config
 from convertisseurs import get_convertisseur
 
@@ -15,7 +16,30 @@ def index():
         "index.html",
         conversions=Config.CONVERSIONS_DISPONIBLES,
     )
+@app.route("/admin/config", methods=["POST"])
+def mettre_a_jour_config():
+    donnees = request.get_json()
+    if not donnees:
+        return jsonify({"erreur": "Corps JSON requis"}), 400
 
+    cles_permises = {"taille_max_octets", "formats_supportes"}
+    cles_inconnues = set(donnees.keys()) - cles_permises
+    if cles_inconnues:
+        return jsonify({"erreur": f"Clés inconnues : {cles_inconnues}"}), 400
+
+    config = Config()
+    config.mettre_a_jour(donnees)
+    return jsonify({"message": "Configuration mise à jour"}), 200
+
+
+@app.route("/stats")
+def stats():
+    config = Config()
+    return jsonify({
+        "nb_conversions": config.get_nb_conversions(),
+        "formats_supportes": config.FORMATS_SUPPORTES,
+        "taille_max_octets": config.TAILLE_MAX_OCTETS,
+    })
 
 @app.route("/convertir", methods=["POST"])
 def convertir():
